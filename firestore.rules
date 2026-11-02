@@ -1,0 +1,65 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function owner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+    match /stores/{uid}/products/{productId} {
+      allow read: if owner(uid);
+      allow create, update: if owner(uid)
+        && request.resource.data.keys().hasOnly(['id', 'name', 'category', 'piecesPerBox', 'boxPrice', 'loosePrice', 'stock', 'color', 'imageData'])
+        && request.resource.data.id == productId
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 100
+        && request.resource.data.category is string
+        && request.resource.data.category.size() > 0
+        && request.resource.data.category.size() <= 50
+        && request.resource.data.color is string
+        && (!('imageData' in request.resource.data) || (
+          request.resource.data.imageData is string
+          && request.resource.data.imageData.size() <= 150000
+          && (request.resource.data.imageData == '' || request.resource.data.imageData.matches('^data:image/jpeg;base64,[A-Za-z0-9+/=]+$'))
+        ))
+        && request.resource.data.stock is int && request.resource.data.stock >= 0
+        && request.resource.data.piecesPerBox is int && request.resource.data.piecesPerBox > 0
+        && request.resource.data.boxPrice is number && request.resource.data.boxPrice >= 0
+        && request.resource.data.loosePrice is number && request.resource.data.loosePrice >= 0;
+    }
+    match /stores/{uid}/categories/{categoryId} {
+      allow read: if owner(uid);
+      allow create, update: if owner(uid)
+        && request.resource.data.keys().hasOnly(['name'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 50;
+    }
+    match /stores/{uid}/bills/{billId} {
+      allow read: if owner(uid);
+      allow create: if owner(uid)
+        && request.resource.data.id == billId
+        && request.resource.data.demo == false
+        && request.resource.data.lines is list
+        && request.resource.data.lines.size() > 0
+        && request.resource.data.total is number && request.resource.data.total >= 0
+        && request.resource.data.discount is number && request.resource.data.discount >= 0
+        && request.resource.data.subtotal is number
+        && request.resource.data.discount <= request.resource.data.subtotal
+        && request.resource.data.total >= request.resource.data.subtotal - request.resource.data.discount - 0.005
+        && request.resource.data.total <= request.resource.data.subtotal - request.resource.data.discount + 0.005;
+      allow update: if owner(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pdfUrl', 'pdfPath', 'shortPdfUrl'])
+        && request.resource.data.pdfUrl is string
+        && request.resource.data.pdfUrl.size() <= 4000
+        && request.resource.data.pdfUrl.matches('^https://res[.]cloudinary[.]com/[^/]+/raw/upload/.*')
+        && (!('shortPdfUrl' in request.resource.data) || (
+          request.resource.data.shortPdfUrl is string
+          && request.resource.data.shortPdfUrl.matches('^https://is[.]gd/[A-Za-z0-9_-]{1,64}$')
+        ))
+        && request.resource.data.pdfPath is string
+        && request.resource.data.pdfPath.size() <= 500
+        && request.resource.data.pdfPath.matches('^hariom phatak center/' + uid + '/' + billId + '-[a-f0-9]+[.]pdf$');
+      allow delete: if false;
+    }
+  }
+}
