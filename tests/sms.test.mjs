@@ -12,7 +12,8 @@ test('SMS recipient and encoded message work with Android and iOS URI formats', 
  assert.ok(standard.startsWith('sms:+919876543210?body='))
  assert.equal(decodeURIComponent(standard.split('?body=')[1]), pdfSmsBody(bill, link))
  assert.ok(pdfSmsUrl(bill, link, true).startsWith('sms:+919876543210&body='))
- assert.throws(() => pdfSmsUrl({ ...bill, phone: '' }, link), /phone number/)
+ assert.equal(pdfSmsUrl({ ...bill, phone: '' }, link), `sms:?body=${encodeURIComponent(pdfSmsBody(bill, link))}`)
+ assert.equal(pdfSmsUrl({ ...bill, phone: '' }, link, true), `sms:&body=${encodeURIComponent(pdfSmsBody(bill, link))}`)
  assert.throws(() => pdfSmsBody(bill, 'javascript:alert(1)'), /secure/)
 })
 

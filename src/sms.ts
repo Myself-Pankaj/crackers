@@ -12,8 +12,7 @@ export function pdfSmsBody(bill: SmsBill, pdfUrl: string): string {
   return `Namaste ${bill.customer?.trim() || 'Customer'},\n\n${DIWALI_WISH} May your home be filled with light, happiness, and prosperity.\n\nBill: ${bill.id}${amount}${payment}\nView or download your PDF bill:\n${url.href}\n\nThank you for celebrating with us!\n${STORE_NAME}`
 }
 export function pdfSmsUrl(bill: SmsBill & Pick<Bill, 'phone'>, pdfUrl: string, ios = false): string {
-  if (!bill.phone) throw new Error('Add a customer phone number to send an SMS.')
-  const phone = normalizePhone(bill.phone.startsWith('+') ? bill.phone : `+${bill.phone}`)
+  const phone = bill.phone ? `+${normalizePhone(bill.phone.startsWith('+') ? bill.phone : `+${bill.phone}`)}` : ''
   // iOS Messages uses &body; other handlers use the RFC 5724 query syntax.
-  return `sms:+${phone}${ios ? '&' : '?'}body=${encodeURIComponent(pdfSmsBody(bill, pdfUrl))}`
+  return `sms:${phone}${ios ? '&' : '?'}body=${encodeURIComponent(pdfSmsBody(bill, pdfUrl))}`
 }

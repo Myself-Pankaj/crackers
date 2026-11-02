@@ -6,6 +6,7 @@ service cloud.firestore {
     }
     match /stores/{uid}/products/{productId} {
       allow read: if owner(uid);
+      allow delete: if owner(uid);
       allow create, update: if owner(uid)
         && request.resource.data.keys().hasOnly(['id', 'name', 'category', 'piecesPerBox', 'boxPrice', 'loosePrice', 'stock', 'color', 'imageData'])
         && request.resource.data.id == productId

@@ -79,15 +79,13 @@ Add categories using **+ Add category** or **+ Add a new category…** in the st
 
 Inventory edits set the absolute piece count; perform them when sales are not in progress. Refunds, bill cancellation, GST/tax calculation, and restocking cancelled bills are not implemented.
 
-## PDF bills and SMS
+## Sharing bills
 
-Bills use Hari Om Phataka Center branding with maroon and gold decoration, lamps, and a Diwali greeting. Box and chillar quantities, rates, customer details, discounts, total, and payment status appear in the PDF. Payment defaults to **Paid · Cash**. New IDs start with `HO-`. Country code defaults to **+91**; enter a 10-digit local number or change the country code. Full international numbers can be pasted too.
+The receipt has two actions: **Share via SMS** and **Share via another app**. Both send the same personal Diwali greeting, bill details, and mobile bill link. SMS opens Messages with the customer number when available; otherwise, choose a recipient in Messages. The other action opens your phone’s native app picker. Select any compatible app and recipient, then send. The app does not send messages automatically.
 
-1. Generate the bill. Its PDF uploads automatically to Cloudinary.
-2. Once the link is saved, **Send PDF link by SMS** opens your phone’s Messages app with the bill’s full phone number and a message containing the customer’s name, Diwali wishes, bill number, amount, payment status, and PDF link.
-3. Review the message and tap **Send** on your phone. The app does not send messages automatically or report SMS delivery.
+A new bill’s PDF is prepared automatically. Saved bills without a link prepare it when opened. If preparation fails, tap either sharing action to retry, then tap again once the link is ready. No PDF download is needed. On browsers without an app picker, the second action copies the full greeting and link so you can paste it into an app yourself. Download remains available to recipients inside the bill viewer.
 
-Messages are sent through your phone and may span multiple SMS segments. SMS body handling varies by messaging app; iOS uses its compatibility separator, while other devices use the standard SMS URI form. **Copy SMS message** is provided if the body does not prefill or if you are using a desktop. **Copy PDF link**, **Open saved PDF**, **Share PDF file**, **Download PDF**, and **Print bill** remain available. Old bills without a hosted PDF have a **Save PDF to Cloudinary** action. No download is needed before sending the link by SMS.
+Each stock card has **Edit** and **Delete**. Deletion requires confirmation, removes the product from the current bill, and clears its discount if the deleted item was in that bill. Saved bills retain their original item details. Publish the updated `firestore.rules` before using deletion; only the signed-in store owner can delete their products.
 
 ## Verification
 
@@ -102,17 +100,17 @@ Tests cover billing calculations, combined stock usage, overselling, input valid
 
 The PDF itself goes to Cloudinary. Firestore receives only `pdfUrl` (the download URL) and `pdfPath` (Cloudinary public ID). A successful Cloudinary upload can be followed by a denied Firestore metadata update if your published rules still prohibit bill updates or expect a Firebase Storage URL. Publish the current `firestore.rules` including its `allow update` condition for those two fields.
 
-When this happens, the receipt keeps the uploaded link available for opening, copying, and SMS sharing. **Retry saving PDF link** retries only the metadata write; it does not upload the PDF or deduct stock again. Keep that receipt open until the link is saved.
+When this happens, the receipt keeps the uploaded link available through both sharing actions and reports that it could not save the link to history. Sharing does not deduct stock again.
 
 ## Short PDF links
 
-After a Cloudinary upload, the backend asks is.gd to create a short link and saves it as `shortPdfUrl` on the Firestore bill alongside `pdfUrl` and `pdfPath`. SMS and **Copy short PDF link** use the short URL; the original Cloudinary URL remains available. Cached and previously saved short links are reused. Shortener failures do not block the bill or PDF: the app uses the original URL and offers **Create short PDF link** to retry without re-uploading an already saved PDF.
+After a Cloudinary upload, the backend asks is.gd to create a short link and saves it as `shortPdfUrl` on the Firestore bill alongside `pdfUrl` and `pdfPath`. Both sharing actions use the short URL when it is saved alongside a valid mobile viewer URL. Cached links are reused. If no short link is available, the app shares the mobile viewer URL, or the original PDF during local development.
 
 Publish the updated `firestore.rules` to allow the `shortPdfUrl` sharing field. No shortener API key or owned domain is required; actual links use `https://is.gd/...`. `phatake.io` cannot be used unless you own/control that domain and configure a redirect service for it. The shortener receives the shareable PDF URL. Service rate limits and availability apply; the backend limits concurrent requests, caches results, and backs off when rate-limited.
 
 ## Production bundles
 
-PDF generation is loaded dynamically when a receipt opens or an upload needs it. Firebase Authentication, Firestore, React, and the PDF engine have separate dependency chunks configured in `vite.config.ts`. The normal 500 kB warning threshold remains enabled. Receipt download/share buttons wait for PDF tools to load, so native file sharing can still run directly from the user’s button tap.
+PDF generation is loaded dynamically when an upload needs it. Firebase Authentication, Firestore, React, and the PDF engine have separate dependency chunks configured in `vite.config.ts`. The normal 500 kB warning threshold remains enabled. Sharing actions send text and a hosted bill link, allowing the app picker to open directly from the button tap once the link is ready.
 
 ## Deploy to Netlify
 
@@ -129,14 +127,10 @@ Alternatively, use the Netlify CLI from this source directory (`netlify deploy -
 
 Netlify-specific function routing and environment-variable configuration require verification on your deployed site. The local tests cover the web Request/Response adapter and its authenticated upload flow with mocked providers.
 
-## A PDF opens directly but not from SMS
-
-The receipt’s **Link to send** selector lets you choose the original Cloudinary PDF URL or the shortened URL. It defaults to the original URL to bypass a failing shortener. SMS and the copy buttons use the selected link. If the original opens but the short URL fails, capture the exact link received and the browser’s error before replacing the shortening provider. Short.io and other redirect services cannot repair an inaccessible original PDF.
-
 ## Android-friendly bill viewing
 
 SMS now defaults to a public **mobile bill viewer**, served at `/bill-view.html`. It renders PDFs using PDF.js into an HTML canvas, includes Previous/Next controls for multi-page bills, and offers **Download PDF**. Recipients do not sign in. This avoids relying on the Android Messages app’s or browser’s native PDF handler. The viewer accepts only HTTPS Cloudinary raw PDF URLs. It uses a fragment for the PDF address and a no-referrer policy. PDF.js and its worker are hosted with the site; they load only when the recipient opens the viewer.
 
 The backend uses the public request origin, Netlify’s `URL`, or an explicit `PUBLIC_SITE_URL` to build `pdfViewerUrl`; set `PUBLIC_SITE_URL` to your actual deployed HTTPS origin if the auto-detected address is incorrect. The shortened URL now redirects to this viewer, while `pdfUrl` still stores the actual Cloudinary PDF file. Publish the updated Firestore rules to permit the additional `pdfViewerUrl` sharing field.
 
-After redeployment, open a saved bill and choose **Prepare mobile SMS link**, then send a **new SMS**. Old short links already sent to customers continue to point to their original destinations. The receipt lets you switch between the recommended mobile viewer and the original PDF file. **View bill on phone** previews the viewer directly. Localhost preview links cannot be opened from another phone; share links from your deployed HTTPS site.
+Send a new message using either sharing action. Old short links already sent to customers keep their original destinations. Localhost viewer links cannot be opened from another phone, so local development shares the hosted PDF instead. Use your deployed HTTPS site for mobile viewer links.

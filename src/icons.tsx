@@ -10,6 +10,7 @@ export function Icon({ name, size = 20 }: { name: string; size?: number }) {
  phone: <><path d="M4 3h4l2 5-3 2a15 15 0 0 0 7 7l2-3 5 2v4c-9 3-20-8-17-17Z"/></>,
  print: <><path d="M7 8V3h10v5M7 17H3V8h18v9h-4M7 14h10v8H7Z"/><path d="M17 11h1"/></>,
  trash: <><path d="M3 6h18M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7M14 10v7"/></>,
+ share: <><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.5 6.8-4m-6.8 7 6.8 4"/></>,
  logout: <><path d="M10 4H4v16h6M10 12h11m-4-4 4 4-4 4"/></>,
  }
  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name] || paths.spark}</svg>
