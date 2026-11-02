@@ -1,12 +1,14 @@
 import react, { reactCompilerPreset } from '@vitejs/plugin-react'
 import babel from '@rolldown/plugin-babel'
 import { defineConfig, loadEnv } from 'vite'
+import { fileURLToPath } from 'node:url'
 import { createBillPdfHandler } from './server/bill-pdf.mjs'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
   build: {
     rolldownOptions: {
+      input: { app: fileURLToPath(new URL('./index.html', import.meta.url)), bill: fileURLToPath(new URL('./bill-view.html', import.meta.url)) },
       output: {
         codeSplitting: {
           groups: [

@@ -25,3 +25,9 @@
   for = "/index.html"
   [headers.values]
     Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/bill-view.html"
+  [headers.values]
+    Cache-Control = "no-cache"
+    Referrer-Policy = "no-referrer"

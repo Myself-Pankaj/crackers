@@ -128,3 +128,15 @@ Uploading only `dist/` through Netlify Drop deploys static files without the PDF
 Alternatively, use the Netlify CLI from this source directory (`netlify deploy --build --prod`) after linking it to your existing site. The source build must deploy functions as well as static output. A new drag-and-drop upload of `dist` alone cannot fix the missing API. Netlify manages HTTPS and the function runtime; `pnpm start` is not used there. The API rewrite is placed before the app fallback so PDF requests reach the function.
 
 Netlify-specific function routing and environment-variable configuration require verification on your deployed site. The local tests cover the web Request/Response adapter and its authenticated upload flow with mocked providers.
+
+## A PDF opens directly but not from SMS
+
+The receipt’s **Link to send** selector lets you choose the original Cloudinary PDF URL or the shortened URL. It defaults to the original URL to bypass a failing shortener. SMS and the copy buttons use the selected link. If the original opens but the short URL fails, capture the exact link received and the browser’s error before replacing the shortening provider. Short.io and other redirect services cannot repair an inaccessible original PDF.
+
+## Android-friendly bill viewing
+
+SMS now defaults to a public **mobile bill viewer**, served at `/bill-view.html`. It renders PDFs using PDF.js into an HTML canvas, includes Previous/Next controls for multi-page bills, and offers **Download PDF**. Recipients do not sign in. This avoids relying on the Android Messages app’s or browser’s native PDF handler. The viewer accepts only HTTPS Cloudinary raw PDF URLs. It uses a fragment for the PDF address and a no-referrer policy. PDF.js and its worker are hosted with the site; they load only when the recipient opens the viewer.
+
+The backend uses the public request origin, Netlify’s `URL`, or an explicit `PUBLIC_SITE_URL` to build `pdfViewerUrl`; set `PUBLIC_SITE_URL` to your actual deployed HTTPS origin if the auto-detected address is incorrect. The shortened URL now redirects to this viewer, while `pdfUrl` still stores the actual Cloudinary PDF file. Publish the updated Firestore rules to permit the additional `pdfViewerUrl` sharing field.
+
+After redeployment, open a saved bill and choose **Prepare mobile SMS link**, then send a **new SMS**. Old short links already sent to customers continue to point to their original destinations. The receipt lets you switch between the recommended mobile viewer and the original PDF file. **View bill on phone** previews the viewer directly. Localhost preview links cannot be opened from another phone; share links from your deployed HTTPS site.

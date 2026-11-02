@@ -1,5 +1,6 @@
 import { doc, updateDoc } from 'firebase/firestore'
 import { auth, db } from './firebase'
+import { billViewerUrl, isBillViewerUrl } from './viewerUrl'
 import { isShortPdfUrl } from './shortUrl'
 import { loadPdfTools } from './pdfLoader'
 import { isCloudinaryBillLink, savePublishedPdfLink } from './pdfPublication'
@@ -10,9 +11,9 @@ export async function uploadBillPdf(bill: Bill, uid: string): Promise<PdfLink> {
   const database = db
   if (!database || !auth?.currentUser || auth.currentUser.uid !== uid) throw new Error('Sign in to the bill’s store before uploading its PDF.')
   let link: PdfLink
-  if (isCloudinaryBillLink(bill, uid, bill.id) && isShortPdfUrl(bill.shortPdfUrl)) {
+  if (isCloudinaryBillLink(bill, uid, bill.id) && isShortPdfUrl(bill.shortPdfUrl) && (window.location.protocol !== 'https:' || bill.pdfViewerUrl === billViewerUrl(bill.pdfUrl!, window.location.origin))) {
     // Retry a failed metadata save without another PDF upload.
-    link = { pdfUrl: bill.pdfUrl, pdfPath: bill.pdfPath, shortPdfUrl: bill.shortPdfUrl }
+    link = { pdfUrl: bill.pdfUrl, pdfPath: bill.pdfPath, shortPdfUrl: bill.shortPdfUrl, ...(bill.pdfViewerUrl ? { pdfViewerUrl: bill.pdfViewerUrl } : {}) }
   } else {
     const { billPdfFile } = await loadPdfTools()
     const file = billPdfFile(bill)
@@ -23,7 +24,7 @@ export async function uploadBillPdf(bill: Bill, uid: string): Promise<PdfLink> {
     const result = await response.json()
     if (!response.ok) throw new Error(result.error || 'Cloudinary PDF upload failed.')
     if (!isCloudinaryBillLink(result, uid, bill.id)) throw new Error('The upload server returned an invalid PDF link.')
-    link = { pdfUrl: result.pdfUrl, pdfPath: result.pdfPath, ...(isShortPdfUrl(result.shortPdfUrl) ? { shortPdfUrl: result.shortPdfUrl } : {}) }
+    link = { pdfUrl: result.pdfUrl, pdfPath: result.pdfPath, ...(isShortPdfUrl(result.shortPdfUrl) ? { shortPdfUrl: result.shortPdfUrl } : {}), ...(isBillViewerUrl(result.pdfViewerUrl, result.pdfUrl) ? { pdfViewerUrl: result.pdfViewerUrl } : {}) }
   }
   // The PDF stays in Cloudinary. Firestore stores its original URL, short URL, and asset ID.
   return savePublishedPdfLink(link, value => updateDoc(doc(database, 'stores', uid, 'bills', bill.id), value))

@@ -48,13 +48,18 @@ service cloud.firestore {
         && request.resource.data.total >= request.resource.data.subtotal - request.resource.data.discount - 0.005
         && request.resource.data.total <= request.resource.data.subtotal - request.resource.data.discount + 0.005;
       allow update: if owner(uid)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pdfUrl', 'pdfPath', 'shortPdfUrl'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pdfUrl', 'pdfPath', 'shortPdfUrl', 'pdfViewerUrl'])
         && request.resource.data.pdfUrl is string
         && request.resource.data.pdfUrl.size() <= 4000
         && request.resource.data.pdfUrl.matches('^https://res[.]cloudinary[.]com/[^/]+/raw/upload/.*')
         && (!('shortPdfUrl' in request.resource.data) || (
           request.resource.data.shortPdfUrl is string
           && request.resource.data.shortPdfUrl.matches('^https://is[.]gd/[A-Za-z0-9_-]{1,64}$')
+        ))
+        && (!('pdfViewerUrl' in request.resource.data) || (
+          request.resource.data.pdfViewerUrl is string
+          && request.resource.data.pdfViewerUrl.size() <= 6000
+          && request.resource.data.pdfViewerUrl.matches('^https://[^/]+/bill-view[.]html#pdf=.*')
         ))
         && request.resource.data.pdfPath is string
         && request.resource.data.pdfPath.size() <= 500

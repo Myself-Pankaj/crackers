@@ -15,3 +15,12 @@ test('SMS recipient and encoded message work with Android and iOS URI formats', 
  assert.throws(() => pdfSmsUrl({ ...bill, phone: '' }, link), /phone number/)
  assert.throws(() => pdfSmsBody(bill, 'javascript:alert(1)'), /secure/)
 })
+
+test('original PDF URL survives SMS encoding without becoming the short URL', () => {
+ const original = 'https://res.cloudinary.com/buymybook/raw/upload/v1/hariom%20phatak%20center/uid/HO-TEST-a.pdf'
+ const result = pdfSmsUrl({ ...bill, shortPdfUrl: 'https://is.gd/badLink' }, original)
+ const message = decodeURIComponent(result.split('?body=')[1])
+ assert.ok(message.includes(original))
+ assert.ok(!message.includes('https://is.gd/badLink'))
+ assert.ok(message.includes('%20phatak%20'))
+})

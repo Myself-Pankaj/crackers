@@ -7,7 +7,7 @@ const root = fileURLToPath(new URL('../', import.meta.url))
 for (const name of ['.env', '.env.local']) { const file = resolve(root, name); if (existsSync(file)) process.loadEnvFile(file) }
 const dist = resolve(root, 'dist')
 const upload = createBillPdfHandler()
-const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2' }
+const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2' }
 createServer(async (req, res) => {
   let url
   try { url = new URL(req.url, 'http://localhost') } catch { res.writeHead(400); res.end(); return }

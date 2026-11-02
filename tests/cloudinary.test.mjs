@@ -78,3 +78,22 @@ test('upload names remain stable on retry and support both folder modes', () => 
  assert.equal(`${fixed.folder}/${fixed.public_id}`, first.public_id)
  assert.equal(cloudinarySignature({ timestamp: 123, overwrite: 'false' }, 'secret'), cloudinarySignature({ overwrite: 'false', timestamp: 123 }, 'secret'))
 })
+
+test('old direct-PDF short links are replaced by links to the deployed mobile viewer', async () => {
+ const pdfUrl = 'https://res.cloudinary.com/test-cloud/raw/upload/v1/mobile-upgrade.pdf'
+ const pdfPath = 'hariom phatak center/verified-user/HO-TEST-abc123.pdf'
+ let shortenedTarget = ''
+ const result = await call({ headers: { origin: 'https://hariom-test.netlify.app' }, fetcher: async address => {
+   if (address.includes('accounts:lookup')) return response({ users: [{ localId: 'verified-user' }] })
+   if (address.includes('firestore.googleapis.com')) return response({ fields: { pdfUrl: { stringValue: pdfUrl }, pdfPath: { stringValue: pdfPath }, shortPdfUrl: { stringValue: 'https://is.gd/oldDirect' } } })
+   assert.ok(address.startsWith('https://is.gd/create.php'))
+   shortenedTarget = new URL(address).searchParams.get('url')
+   return response({ shorturl: 'https://is.gd/newMobile' })
+ } })
+ assert.equal(result.status, 200)
+ assert.equal(result.body.shortPdfUrl, 'https://is.gd/newMobile')
+ assert.equal(result.body.pdfViewerUrl, shortenedTarget)
+ assert.equal(new URL(shortenedTarget).origin, 'https://hariom-test.netlify.app')
+ assert.equal(new URL(shortenedTarget).pathname, '/bill-view.html')
+ assert.equal(new URLSearchParams(new URL(shortenedTarget).hash.slice(1)).get('pdf'), pdfUrl)
+})

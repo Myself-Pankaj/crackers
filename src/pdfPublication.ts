@@ -1,4 +1,4 @@
-export type PdfLink = { pdfUrl: string; pdfPath: string; shortPdfUrl?: string }
+export type PdfLink = { pdfUrl: string; pdfPath: string; shortPdfUrl?: string; pdfViewerUrl?: string }
 export class PdfLinkSaveError extends Error {
   readonly link: PdfLink
   readonly saveErrorCode: string

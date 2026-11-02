@@ -2,7 +2,7 @@ import { STORE_NAME, DIWALI_WISH } from './brand.ts'
 export type Product = { id: string; name: string; category: string; piecesPerBox: number; boxPrice: number; loosePrice: number; stock: number; color: string; imageData?: string }
 export type CartLine = { productId: string; unit: 'box' | 'loose'; quantity: number }
 export type BillLine = CartLine & { name: string; price: number; pieces: number; amount: number }
-export type Bill = { id: string; createdAt: string; customer: string; phone: string; lines: BillLine[]; subtotal: number; discount: number; total: number; payment: string; demo: boolean; pdfUrl?: string; pdfPath?: string; shortPdfUrl?: string }
+export type Bill = { id: string; createdAt: string; customer: string; phone: string; lines: BillLine[]; subtotal: number; discount: number; total: number; payment: string; demo: boolean; pdfUrl?: string; pdfPath?: string; shortPdfUrl?: string; pdfViewerUrl?: string }
 export const categories = ['All items', 'Sparklers', 'Flower pots', 'Ground chakkars', 'Rockets', 'Sound crackers', 'Gift boxes']
 export const money = (value: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(value)
 export function calculate(products: Product[], cart: CartLine[], discount: number) {

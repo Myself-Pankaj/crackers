@@ -1,4 +1,5 @@
 import { createHash, createHmac } from 'node:crypto'
+import { billViewerUrl } from '../src/viewerUrl.ts'
 import { shortenPdfUrl } from './url-shortener.mjs'
 import { isShortPdfUrl } from '../src/shortUrl.ts'
 import { defaultFirebaseConfig } from '../src/firebaseConfig.ts'
@@ -28,6 +29,13 @@ async function readPdf(req) {
 }
 export function createBillPdfHandler({ env = process.env, fetcher = fetch } = {}) {
   return async function handleBillPdf(req, res) {
+    const viewerFor = pdfUrl => {
+      try {
+        const origin = env.PUBLIC_SITE_URL || req.headers.origin || env.URL
+        if (!origin || new URL(origin).protocol !== 'https:') return undefined
+        return billViewerUrl(pdfUrl, origin)
+      } catch { return undefined }
+    }
     const reply = (status, body) => { res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }); res.end(JSON.stringify(body)) }
     try {
       if (req.method !== 'POST') throw new HttpError(405, 'Use POST to upload a bill PDF.')
@@ -52,8 +60,10 @@ export function createBillPdfHandler({ env = process.env, fetcher = fetch } = {}
       if (cloudinaryLink(oldUrl) && oldPath?.startsWith(`${CLOUDINARY_FOLDER}/${uid}/`)) {
         req.resume()
         const existingShort = document.fields?.shortPdfUrl?.stringValue
-        const shortPdfUrl = isShortPdfUrl(existingShort) ? existingShort : await shortenPdfUrl(oldUrl, { fetcher })
-        reply(200, { pdfUrl: oldUrl, pdfPath: oldPath, ...(shortPdfUrl ? { shortPdfUrl } : {}) }); return
+        const pdfViewerUrl = viewerFor(oldUrl)
+        const sameTarget = (document.fields?.pdfViewerUrl?.stringValue || undefined) === pdfViewerUrl
+        const shortPdfUrl = isShortPdfUrl(existingShort) && sameTarget ? existingShort : await shortenPdfUrl(oldUrl, { fetcher, targetUrl: pdfViewerUrl || oldUrl })
+        reply(200, { pdfUrl: oldUrl, pdfPath: oldPath, ...(pdfViewerUrl ? { pdfViewerUrl } : {}), ...(shortPdfUrl ? { shortPdfUrl } : {}) }); return
       }
       const file = await readPdf(req)
       const params = cloudinaryUploadParams(uid, billId, env.CLOUDINARY_API_SECRET, Math.floor(Date.now() / 1000), env.CLOUDINARY_FOLDER_MODE === 'fixed')
@@ -66,8 +76,9 @@ export function createBillPdfHandler({ env = process.env, fetcher = fetch } = {}
       const result = await uploaded.json()
       const expectedPath = params.folder ? `${params.folder}/${params.public_id}` : params.public_id
       if (!uploaded.ok || !cloudinaryLink(result.secure_url) || result.public_id !== expectedPath) throw new HttpError(502, 'Cloudinary upload failed. Check the cloud name, API credentials, and folder mode in your server settings.')
-      const shortPdfUrl = await shortenPdfUrl(result.secure_url, { fetcher })
-      reply(200, { pdfUrl: result.secure_url, pdfPath: result.public_id, ...(shortPdfUrl ? { shortPdfUrl } : {}) })
+      const pdfViewerUrl = viewerFor(result.secure_url)
+      const shortPdfUrl = await shortenPdfUrl(result.secure_url, { fetcher, targetUrl: pdfViewerUrl || result.secure_url })
+      reply(200, { pdfUrl: result.secure_url, pdfPath: result.public_id, ...(pdfViewerUrl ? { pdfViewerUrl } : {}), ...(shortPdfUrl ? { shortPdfUrl } : {}) })
     } catch (e) {
       req.resume()
       reply(e.status || 502, { error: e instanceof HttpError ? e.message : 'The PDF upload service could not complete the request. Check your connection and retry.' })
