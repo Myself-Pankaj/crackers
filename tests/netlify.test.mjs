@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import deployedHandler from '../netlify/functions/bill-pdf.mjs'
 import { createNetlifyBillPdfHandler } from '../server/netlify-handler.mjs'
-const env = { CLOUDINARY_CLOUD_NAME: 'test-cloud', CLOUDINARY_API_KEY: 'key', CLOUDINARY_API_SECRET: 'secret' }
+const env = { SHORT_IO_API_KEY: 'shortio-test-key', VITE_SHORT_IO_DOMAIN: 'short.gy', CLOUDINARY_CLOUD_NAME: 'test-cloud', CLOUDINARY_API_KEY: 'key', CLOUDINARY_API_SECRET: 'secret' }
 
 test('the deployed function returns JSON for GET, rather than SPA HTML', async () => {
  const response = await deployedHandler(new Request('https://example.netlify.app/api/bills/pdf'))
@@ -22,7 +22,7 @@ test('the function forwards Firebase identity and binary PDF data through the sh
      return Response.json({ users: [{ localId: 'owner' }] })
    }
    if (url.includes('firestore.googleapis.com')) { assert.match(url, /stores\/owner\/bills\/HO-TEST$/); return Response.json({ fields: {} }) }
-   if (url.startsWith('https://is.gd/')) return Response.json({ shorturl: 'https://is.gd/netlifyPdf' })
+   if (url === 'https://api.short.io/links') return Response.json({ shortURL: 'https://short.gy/netlifyPdf' })
    assert.equal(url, 'https://api.cloudinary.com/v1_1/test-cloud/raw/upload')
    assert.equal(await options.body.get('file').text(), '%PDF-1.4\nNetlify binary test')
    uploaded = true
@@ -32,7 +32,7 @@ test('the function forwards Firebase identity and binary PDF data through the sh
  const response = await handler(request)
  assert.equal(response.status, 200)
  const result = await response.json()
- assert.equal(result.shortPdfUrl, 'https://is.gd/netlifyPdf')
+ assert.equal(result.shortPdfUrl, 'https://short.gy/netlifyPdf')
  assert.ok(result.pdfPath.startsWith('hariom phatak center/owner/'))
  assert.equal(uploaded, true)
  assert.equal(response.headers.get('cache-control'), 'no-store')

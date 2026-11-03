@@ -55,7 +55,9 @@ service cloud.firestore {
         && request.resource.data.pdfUrl.matches('^https://res[.]cloudinary[.]com/[^/]+/raw/upload/.*')
         && (!('shortPdfUrl' in request.resource.data) || (
           request.resource.data.shortPdfUrl is string
-          && request.resource.data.shortPdfUrl.matches('^https://is[.]gd/[A-Za-z0-9_-]{1,64}$')
+          // Short.io supports account-specific domains. The app checks its configured hostname.
+          && request.resource.data.shortPdfUrl.size() <= 2048
+          && request.resource.data.shortPdfUrl.matches('^https://([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?[.])+[a-z]{2,63}/[A-Za-z0-9_-]{1,255}$')
         ))
         && (!('pdfViewerUrl' in request.resource.data) || (
           request.resource.data.pdfViewerUrl is string

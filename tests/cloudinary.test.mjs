@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { Readable } from 'node:stream'
 import { cloudinaryUploadParams, cloudinarySignature, createBillPdfHandler } from '../server/bill-pdf.mjs'
-const env = { CLOUDINARY_CLOUD_NAME: 'test-cloud', CLOUDINARY_API_KEY: 'test-key', CLOUDINARY_API_SECRET: 'server-only-secret' }
+const env = { SHORT_IO_API_KEY: 'shortio-test-key', VITE_SHORT_IO_DOMAIN: 'short.gy', CLOUDINARY_CLOUD_NAME: 'test-cloud', CLOUDINARY_API_KEY: 'test-key', CLOUDINARY_API_SECRET: 'server-only-secret' }
 const response = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } })
 async function call({ fetcher, headers = {}, method = 'POST', body = '%PDF-1.4\nTest PDF', config = env } = {}) {
  const req = Readable.from([Buffer.from(body)])
@@ -31,7 +31,7 @@ test('the authenticated UID determines bill access and only signed PDF uploads r
    calls.push(url)
    if (url.includes('accounts:lookup')) { assert.equal(JSON.parse(options.body).idToken, 'id-token'); return response({ users: [{ localId: 'verified-user' }] }) }
    if (url.includes('firestore.googleapis.com')) { assert.match(url, /stores\/verified-user\/bills\/HO-TEST$/); return response({ fields: {} }) }
-   if (url.startsWith('https://is.gd/create.php')) { assert.equal(new URL(url).searchParams.get('url'), 'https://res.cloudinary.com/test-cloud/raw/upload/v1/test.pdf'); return response({ shorturl: 'https://is.gd/testBill' }) }
+   if (url === 'https://api.short.io/links') { assert.equal(JSON.parse(options.body).originalURL, 'https://res.cloudinary.com/test-cloud/raw/upload/v1/test.pdf'); return response({ shortURL: 'https://short.gy/testBill' }) }
    assert.equal(url, 'https://api.cloudinary.com/v1_1/test-cloud/raw/upload')
    const form = options.body
    assert.equal(form.get('asset_folder'), 'hariom phatak center')
@@ -45,7 +45,7 @@ test('the authenticated UID determines bill access and only signed PDF uploads r
  const result = await call({ fetcher })
  assert.equal(result.status, 200)
  assert.equal(calls.length, 4)
- assert.equal(result.body.shortPdfUrl, 'https://is.gd/testBill')
+ assert.equal(result.body.shortPdfUrl, 'https://short.gy/testBill')
  assert.match(result.body.pdfUrl, /^https:\/\/res.cloudinary.com\//)
  assert.equal(JSON.stringify(result.body).includes(env.CLOUDINARY_API_SECRET), false)
 })
@@ -57,7 +57,7 @@ test('upload cannot proceed without a saved bill belonging to the account', asyn
 })
 test('a saved Cloudinary link is reused without another upload', async () => {
  let count = 0
- const link = { pdfUrl: 'https://res.cloudinary.com/test-cloud/raw/upload/v1/bill.pdf', pdfPath: 'hariom phatak center/verified-user/HO-TEST-existing.pdf', shortPdfUrl: 'https://is.gd/savedBill' }
+ const link = { pdfUrl: 'https://res.cloudinary.com/test-cloud/raw/upload/v1/bill.pdf', pdfPath: 'hariom phatak center/verified-user/HO-TEST-existing.pdf', shortPdfUrl: 'https://short.gy/savedBill' }
  const result = await call({ fetcher: async () => ++count === 1 ? response({ users: [{ localId: 'verified-user' }] }) : response({ fields: { pdfUrl: { stringValue: link.pdfUrl }, pdfPath: { stringValue: link.pdfPath }, shortPdfUrl: { stringValue: link.shortPdfUrl } } }) })
  assert.equal(result.status, 200)
  assert.deepEqual(result.body, link)
@@ -83,15 +83,15 @@ test('old direct-PDF short links are replaced by links to the deployed mobile vi
  const pdfUrl = 'https://res.cloudinary.com/test-cloud/raw/upload/v1/mobile-upgrade.pdf'
  const pdfPath = 'hariom phatak center/verified-user/HO-TEST-abc123.pdf'
  let shortenedTarget = ''
- const result = await call({ headers: { origin: 'https://hariom-test.netlify.app' }, fetcher: async address => {
+ const result = await call({ headers: { origin: 'https://hariom-test.netlify.app' }, fetcher: async (address, options) => {
    if (address.includes('accounts:lookup')) return response({ users: [{ localId: 'verified-user' }] })
-   if (address.includes('firestore.googleapis.com')) return response({ fields: { pdfUrl: { stringValue: pdfUrl }, pdfPath: { stringValue: pdfPath }, shortPdfUrl: { stringValue: 'https://is.gd/oldDirect' } } })
-   assert.ok(address.startsWith('https://is.gd/create.php'))
-   shortenedTarget = new URL(address).searchParams.get('url')
-   return response({ shorturl: 'https://is.gd/newMobile' })
+   if (address.includes('firestore.googleapis.com')) return response({ fields: { pdfUrl: { stringValue: pdfUrl }, pdfPath: { stringValue: pdfPath }, shortPdfUrl: { stringValue: 'https://short.gy/oldDirect' } } })
+   assert.equal(address, 'https://api.short.io/links')
+   shortenedTarget = JSON.parse(options.body).originalURL
+   return response({ shortURL: 'https://short.gy/newMobile' })
  } })
  assert.equal(result.status, 200)
- assert.equal(result.body.shortPdfUrl, 'https://is.gd/newMobile')
+ assert.equal(result.body.shortPdfUrl, 'https://short.gy/newMobile')
  assert.equal(result.body.pdfViewerUrl, shortenedTarget)
  assert.equal(new URL(shortenedTarget).origin, 'https://hariom-test.netlify.app')
  assert.equal(new URL(shortenedTarget).pathname, '/bill-view.html')

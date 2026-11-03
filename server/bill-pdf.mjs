@@ -62,7 +62,7 @@ export function createBillPdfHandler({ env = process.env, fetcher = fetch } = {}
         const existingShort = document.fields?.shortPdfUrl?.stringValue
         const pdfViewerUrl = viewerFor(oldUrl)
         const sameTarget = (document.fields?.pdfViewerUrl?.stringValue || undefined) === pdfViewerUrl
-        const shortPdfUrl = isShortPdfUrl(existingShort) && sameTarget ? existingShort : await shortenPdfUrl(oldUrl, { fetcher, targetUrl: pdfViewerUrl || oldUrl })
+        const shortPdfUrl = isShortPdfUrl(existingShort, env.VITE_SHORT_IO_DOMAIN) && sameTarget ? existingShort : await shortenPdfUrl(oldUrl, { fetcher, env, targetUrl: pdfViewerUrl || oldUrl })
         reply(200, { pdfUrl: oldUrl, pdfPath: oldPath, ...(pdfViewerUrl ? { pdfViewerUrl } : {}), ...(shortPdfUrl ? { shortPdfUrl } : {}) }); return
       }
       const file = await readPdf(req)
@@ -77,7 +77,7 @@ export function createBillPdfHandler({ env = process.env, fetcher = fetch } = {}
       const expectedPath = params.folder ? `${params.folder}/${params.public_id}` : params.public_id
       if (!uploaded.ok || !cloudinaryLink(result.secure_url) || result.public_id !== expectedPath) throw new HttpError(502, 'Cloudinary upload failed. Check the cloud name, API credentials, and folder mode in your server settings.')
       const pdfViewerUrl = viewerFor(result.secure_url)
-      const shortPdfUrl = await shortenPdfUrl(result.secure_url, { fetcher, targetUrl: pdfViewerUrl || result.secure_url })
+      const shortPdfUrl = await shortenPdfUrl(result.secure_url, { fetcher, env, targetUrl: pdfViewerUrl || result.secure_url })
       reply(200, { pdfUrl: result.secure_url, pdfPath: result.public_id, ...(pdfViewerUrl ? { pdfViewerUrl } : {}), ...(shortPdfUrl ? { shortPdfUrl } : {}) })
     } catch (e) {
       req.resume()

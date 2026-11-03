@@ -104,9 +104,20 @@ When this happens, the receipt keeps the uploaded link available through both sh
 
 ## Short PDF links
 
-After a Cloudinary upload, the backend asks is.gd to create a short link and saves it as `shortPdfUrl` on the Firestore bill alongside `pdfUrl` and `pdfPath`. Both sharing actions use the short URL when it is saved alongside a valid mobile viewer URL. Cached links are reused. If no short link is available, the app shares the mobile viewer URL, or the original PDF during local development.
+After a Cloudinary upload, the backend creates a Short.io link to the mobile bill viewer and saves it as `shortPdfUrl` alongside the original PDF metadata. Sharing uses this short link. Existing is.gd links remain supported. If Short.io is unconfigured or unavailable, sharing falls back to the viewer, or the hosted PDF during local development.
 
-Publish the updated `firestore.rules` to allow the `shortPdfUrl` sharing field. No shortener API key or owned domain is required; actual links use `https://is.gd/...`. `phatake.io` cannot be used unless you own/control that domain and configure a redirect service for it. The shortener receives the shareable PDF URL. Service rate limits and availability apply; the backend limits concurrent requests, caches results, and backs off when rate-limited.
+In [Short.io](https://app.short.io/settings/integrations/api-key), create a **secret API key** and copy the exact domain hostname shown in your account. Set these values in `.env.local`:
+
+```dotenv
+SHORT_IO_API_KEY=your-secret-api-key
+VITE_SHORT_IO_DOMAIN=your-account-domain.short.gy
+```
+
+Use your actual Short.io account domain, including any subdomain; the example is a placeholder. A domain already provided by Short.io can be used, or a custom domain configured in your account. The API key stays on the server; never give it a `VITE_` prefix. Only the domain is public. The backend uses Short.io's [create-link API](https://developers.short.io/docs/creating-your-first-short-link).
+
+For Netlify, set `SHORT_IO_API_KEY` with **Functions** scope and `VITE_SHORT_IO_DOMAIN` with **Builds and Functions** scope, then redeploy from source. For Node hosting, set both variables on the server and set the domain when building. Restart Vite after local configuration changes.
+
+Publish the updated `firestore.rules` so it accepts Short.io domain URLs. Firestore rules validate HTTPS URL structure because Short.io domains vary per account; the app and backend validate the configured hostname. Cached links are reused, concurrent duplicate requests share one call, and rate limits trigger a cooldown. Already saved links are reused without uploading the PDF again.
 
 ## Production bundles
 

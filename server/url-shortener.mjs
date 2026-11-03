@@ -6,10 +6,14 @@ const queue = []
 async function acquire() { if (active >= 5) await new Promise(resolve => queue.push(resolve)); else active++ }
 function release() { const next = queue.shift(); if (next) next(); else active-- }
 let cooldownUntil = 0
-export async function shortenPdfUrl(pdfUrl, { fetcher = fetch, targetUrl = pdfUrl } = {}) {
+export async function shortenPdfUrl(pdfUrl, { fetcher = fetch, targetUrl = pdfUrl, env = process.env } = {}) {
+  const domain = env.VITE_SHORT_IO_DOMAIN?.trim().toLowerCase()
+  const apiKey = env.SHORT_IO_API_KEY?.trim()
+  if (!apiKey || !domain || !/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?[.])+[a-z]{2,63}$/.test(domain)) return undefined
+  const cacheKey = `${domain}\n${targetUrl}`
   if (targetUrl !== pdfUrl && !isBillViewerUrl(targetUrl, pdfUrl)) return undefined
-  if (cache.has(targetUrl)) return cache.get(targetUrl)
-  if (pending.has(targetUrl)) return pending.get(targetUrl)
+  if (cache.has(cacheKey)) return cache.get(cacheKey)
+  if (pending.has(cacheKey)) return pending.get(cacheKey)
   if (Date.now() < cooldownUntil) return undefined
   const task = (async () => {
     await acquire()
@@ -17,18 +21,21 @@ export async function shortenPdfUrl(pdfUrl, { fetcher = fetch, targetUrl = pdfUr
       if (Date.now() < cooldownUntil) return undefined
       const url = new URL(pdfUrl)
       if (url.protocol !== 'https:' || url.hostname !== 'res.cloudinary.com') return undefined
-      const request = new URL('https://is.gd/create.php')
-      request.searchParams.set('format', 'json'); request.searchParams.set('url', targetUrl)
-      const response = await fetcher(request.href, { signal: AbortSignal.timeout(8000) })
+      const response = await fetcher('https://api.short.io/links', {
+        method: 'POST',
+        headers: { Authorization: apiKey, Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domain, originalURL: targetUrl, allowDuplicates: false }),
+        signal: AbortSignal.timeout(8000),
+      })
+      if (response.status === 429) cooldownUntil = Date.now() + 60000
       const result = await response.json()
-      if (result.errorcode === 3 || response.status === 429) cooldownUntil = Date.now() + 60000
-      if (!response.ok || !isShortPdfUrl(result.shorturl)) return undefined
+      if (!response.ok || !isShortPdfUrl(result.shortURL, domain) || new URL(result.shortURL).hostname !== domain) return undefined
       if (cache.size >= 500) cache.delete(cache.keys().next().value)
-      cache.set(targetUrl, result.shorturl)
-      return result.shorturl
+      cache.set(cacheKey, result.shortURL)
+      return result.shortURL
     } catch { return undefined }
     finally { release() }
   })()
-  pending.set(targetUrl, task)
-  try { return await task } finally { pending.delete(targetUrl) }
+  pending.set(cacheKey, task)
+  try { return await task } finally { pending.delete(cacheKey) }
 }

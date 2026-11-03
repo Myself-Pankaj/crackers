@@ -5,6 +5,7 @@ import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'
 import { createBillPdf } from '../src/pdf.ts'
 import { billViewerUrl, isBillViewerUrl, isCloudinaryPdfUrl } from '../src/viewerUrl.ts'
 import { shortenPdfUrl } from '../server/url-shortener.mjs'
+const env = { SHORT_IO_API_KEY: 'shortio-test-key', VITE_SHORT_IO_DOMAIN: 'short.gy' }
 const source = 'https://res.cloudinary.com/buymybook/raw/upload/v1/hariom%20phatak%20center/uid/HO-TEST-abc.pdf'
 
 test('mobile viewer URL preserves the PDF address in a fragment, without exposing it in requests', () => {
@@ -20,11 +21,11 @@ test('mobile viewer URL preserves the PDF address in a fragment, without exposin
 })
 test('the short link points at the mobile viewer for the exact PDF', async () => {
  const viewer = billViewerUrl(source, 'https://viewer-test.netlify.app')
- const short = await shortenPdfUrl(source, { targetUrl: viewer, fetcher: async address => {
-   assert.equal(new URL(address).searchParams.get('url'), viewer)
-   return Response.json({ shorturl: 'https://is.gd/mobileBill' })
+ const short = await shortenPdfUrl(source, { env, targetUrl: viewer, fetcher: async (address, options) => {
+   assert.equal(JSON.parse(options.body).originalURL, viewer)
+   return Response.json({ shortURL: 'https://short.gy/mobileBill' })
  } })
- assert.equal(short, 'https://is.gd/mobileBill')
+ assert.equal(short, 'https://short.gy/mobileBill')
 })
 test('PDF.js can parse and render the actual festive bill to a canvas', async () => {
  const require = createRequire(import.meta.url)
