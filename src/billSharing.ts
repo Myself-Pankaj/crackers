@@ -6,7 +6,9 @@ import { pdfSmsBody } from './sms.ts'
 
 export function billShareUrl(bill: Pick<Bill, 'pdfUrl' | 'pdfViewerUrl' | 'shortPdfUrl'>, origin: string): string {
   if (!bill.pdfUrl || !isCloudinaryPdfUrl(bill.pdfUrl)) return ''
-  if (isBillViewerUrl(bill.pdfViewerUrl, bill.pdfUrl)) return isShortPdfUrl(bill.shortPdfUrl) ? bill.shortPdfUrl : bill.pdfViewerUrl
+  // Saved short links also belong to older bills without viewer metadata.
+  if (isShortPdfUrl(bill.shortPdfUrl)) return bill.shortPdfUrl
+  if (isBillViewerUrl(bill.pdfViewerUrl, bill.pdfUrl)) return bill.pdfViewerUrl
   try {
     const viewer = billViewerUrl(bill.pdfUrl, origin)
     // Local development links cannot be opened on the customer's phone.

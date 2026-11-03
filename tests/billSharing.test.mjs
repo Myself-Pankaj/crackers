@@ -11,8 +11,10 @@ const bill = { id: 'HO-SHARE', customer: 'Mukesh', phone: '919876543210', total:
 test('share links prefer the saved mobile viewer and its short link', () => {
  assert.equal(billShareUrl(bill, 'https://shop.example'), pdfViewerUrl)
  assert.equal(billShareUrl({ ...bill, shortPdfUrl: 'https://is.gd/test' }, 'https://shop.example'), 'https://is.gd/test')
- // Older short links may point directly to PDFs; derive a mobile viewer instead.
- assert.equal(billShareUrl({ pdfUrl, shortPdfUrl: 'https://is.gd/old' }, 'https://shop.example'), pdfViewerUrl)
+ // A saved short link remains preferred when older bills have no viewer metadata.
+ assert.equal(billShareUrl({ pdfUrl, shortPdfUrl: 'https://is.gd/old' }, 'https://shop.example'), 'https://is.gd/old')
+ assert.equal(billShareUrl({ ...bill, pdfViewerUrl: 'https://shop.example/stale', shortPdfUrl: 'https://is.gd/saved' }, 'https://shop.example'), 'https://is.gd/saved')
+ assert.equal(billShareUrl({ ...bill, shortPdfUrl: 'https://evil.example/fake' }, 'https://shop.example'), pdfViewerUrl)
  assert.equal(billShareUrl({ pdfUrl }, 'http://localhost:5173'), pdfUrl)
  assert.equal(billShareUrl({ pdfUrl: 'javascript:alert(1)' }, 'https://shop.example'), '')
  assert.equal(billShareUrl({}, 'https://shop.example'), '')

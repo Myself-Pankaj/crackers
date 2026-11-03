@@ -56,7 +56,7 @@ test('missing or malformed Short.io settings skip provider calls', async () => {
 })
 test('account domains are validated and cached separately', async () => {
  const pdfUrl = source('domain-cache')
- for (const domain of ['shop.short.gy', 'bills.example.com']) {
+ for (const domain of ['shop.short.gy', 'bills.example.com', 'bills.s.gy']) {
    const shortURL = `https://${domain}/bill123`
    const config = { ...env, VITE_SHORT_IO_DOMAIN: domain }
    const fetcher = async (address, options) => {
